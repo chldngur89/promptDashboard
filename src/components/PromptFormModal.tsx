@@ -1,42 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { toast } from "sonner@2.0.3";
-
-interface Prompt {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  categoryColor: string;
-  tags: string[];
-  content: string;
-  difficulty: string;
-}
+import { Prompt, CATEGORY_OPTIONS, DIFFICULTY_OPTIONS } from '../types/prompt';
 
 interface PromptFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (prompt: Omit<Prompt, 'id'>) => void;
+  onSave: (prompt: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => void;
   editPrompt?: Prompt | null;
 }
-
-const categoryOptions = [
-  { name: "이미지 생성", color: "bg-[#cae3ff] border-[#a6d1ff]" },
-  { name: "코딩", color: "bg-[#e0f4bf] border-[#cbec95]" },
-  { name: "글쓰기", color: "bg-[#feec91] border-[#fedf47]" },
-  { name: "데이터 분석", color: "bg-[#dddbfd] border-[#c6c3fb]" },
-  { name: "번역", color: "bg-[#fadcbb] border-[#f7c48d]" }
-];
-
-const difficultyOptions = ["초급", "중급", "고급"];
 
 export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptFormModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("이미지 생성");
+  const [category, setCategory] = useState(CATEGORY_OPTIONS[0].name);
   const [tags, setTags] = useState("");
   const [content, setContent] = useState("");
-  const [difficulty, setDifficulty] = useState("초급");
+  const [difficulty, setDifficulty] = useState<typeof DIFFICULTY_OPTIONS[number]>(DIFFICULTY_OPTIONS[0]);
 
   useEffect(() => {
     if (editPrompt) {
@@ -47,13 +27,12 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
       setContent(editPrompt.content);
       setDifficulty(editPrompt.difficulty);
     } else {
-      // Reset form when opening for new prompt
       setTitle("");
       setDescription("");
-      setCategory("이미지 생성");
+      setCategory(CATEGORY_OPTIONS[0].name);
       setTags("");
       setContent("");
-      setDifficulty("초급");
+      setDifficulty(DIFFICULTY_OPTIONS[0]);
     }
   }, [editPrompt, isOpen]);
 
@@ -65,14 +44,14 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
       return;
     }
 
-    const categoryData = categoryOptions.find(c => c.name === category);
+    const categoryData = CATEGORY_OPTIONS.find(c => c.name === category);
     const tagsArray = tags.split(",").map(tag => tag.trim()).filter(tag => tag);
 
     onSave({
       title: title.trim(),
       description: description.trim(),
       category,
-      categoryColor: categoryData?.color || categoryOptions[0].color,
+      categoryColor: categoryData?.color || CATEGORY_OPTIONS[0].color,
       tags: tagsArray,
       content: content.trim(),
       difficulty
@@ -86,15 +65,12 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
       
-      {/* Modal */}
       <div className="relative bg-background border border-border rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
-        {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl">{editPrompt ? "프롬프트 수정" : "새 프롬프트 추가"}</h2>
           <button
@@ -105,9 +81,7 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Title */}
           <div>
             <label className="block text-sm font-mono uppercase text-muted-foreground mb-2">
               제목 *
@@ -122,7 +96,6 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
             />
           </div>
 
-          {/* Category and Difficulty */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-mono uppercase text-muted-foreground mb-2">
@@ -133,7 +106,7 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-4 py-2.5 bg-sidebar border border-border rounded focus:outline-none focus:ring-2 focus:ring-[#5B4E96] transition-all"
               >
-                {categoryOptions.map(cat => (
+                {CATEGORY_OPTIONS.map(cat => (
                   <option key={cat.name} value={cat.name}>{cat.name}</option>
                 ))}
               </select>
@@ -145,17 +118,16 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
               </label>
               <select
                 value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
+                onChange={(e) => setDifficulty(e.target.value as typeof DIFFICULTY_OPTIONS[number])}
                 className="w-full px-4 py-2.5 bg-sidebar border border-border rounded focus:outline-none focus:ring-2 focus:ring-[#5B4E96] transition-all"
               >
-                {difficultyOptions.map(diff => (
+                {DIFFICULTY_OPTIONS.map(diff => (
                   <option key={diff} value={diff}>{diff}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-mono uppercase text-muted-foreground mb-2">
               설명 *
@@ -170,7 +142,6 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
             />
           </div>
 
-          {/* Tags */}
           <div>
             <label className="block text-sm font-mono uppercase text-muted-foreground mb-2">
               태그 (쉼표로 구분)
@@ -184,7 +155,6 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
             />
           </div>
 
-          {/* Content */}
           <div>
             <label className="block text-sm font-mono uppercase text-muted-foreground mb-2">
               프롬프트 내용 *
@@ -199,7 +169,6 @@ export function PromptFormModal({ isOpen, onClose, onSave, editPrompt }: PromptF
             />
           </div>
 
-          {/* Buttons */}
           <div className="flex items-center justify-end gap-3 pt-4">
             <button
               type="button"
