@@ -1,72 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Prompt, INITIAL_PROMPTS, CATEGORY_OPTIONS } from '../types/prompt';
+import { supabase } from '../lib/supabase';
 
-const STORAGE_KEY = 'prompt-dashboard-data';
 const STORAGE_VERSION = '1.0';
-
-interface StorageData {
-  prompts: Prompt[];
-  version: string;
-}
-
-let supabase: any = null;
-
-try {
-  const supabaseUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
-  const supabaseKey = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY;
-  
-  if (supabaseUrl && supabaseKey && supabaseUrl !== 'undefined') {
-    import('../lib/supabase').then(module => {
-      supabase = module.supabase;
-      console.log('✅ Supabase client initialized');
-    }).catch(err => {
-      console.warn('⚠️ Failed to load Supabase:', err);
-    });
-  } else {
-    console.log('ℹ️ Supabase credentials not found, using localStorage only');
-  }
-} catch (e) {
-  console.log('ℹ️ Running in localStorage mode');
-}
 
 export function usePrompts() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [storageMode, setStorageMode] = useState<'supabase' | 'localStorage'>('localStorage');
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Check if Supabase is available
-    const checkSupabase = async () => {
-      try {
-        if (supabase) {
-          const { data, error } = await supabase.from('prompts').select('*').limit(1);
-          if (!error) {
-            console.log('✅ Supabase connection successful');
-            setStorageMode('supabase');
-            loadFromSupabase();
-            return;
-          }
-        }
-        throw new Error('Supabase not available');
-      } catch (err) {
-        console.log('ℹ️ Using localStorage mode');
-        setStorageMode('localStorage');
-        loadFromLocalStorage();
-      }
-    };
-
-    checkSupabase();
-  }, []);
-
-  const loadFromSupabase = async () => {
+  const loadFromSupabase = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error: loadError } = await supabase
         .from('prompts')
         .select('*')
         .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
+
+      if (loadError) throw loadError;
+
       if (data && data.length > 0) {
         const formattedData: Prompt[] = data.map((item: any) => ({
           id: item.id,
@@ -79,76 +30,64 @@ export function usePrompts() {
           difficulty: item.difficulty,
           createdAt: item.created_at,
           updatedAt: item.updated_at,
-          isFavorite: item.is_favorite || false
+          isFavorite: item.is_favorite || false,
         }));
         setPrompts(formattedData);
-      } else {
-        // Empty DB, use initial data
-        const initialWithIds = INITIAL_PROMPTS.map((prompt, index) => ({
-          ...prompt,
-          id: index + 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isFavorite: false
+        return;
+      }
+
+      // Empty DB: seed initial prompts once
+      const seedData = INITIAL_PROMPTS.map((prompt) => ({
+        title: prompt.title,
+        description: prompt.description,
+        category: prompt.category,
+        category_color: prompt.categoryColor,
+        tags: prompt.tags,
+        content: prompt.content,
+        difficulty: prompt.difficulty,
+        is_favorite: false,
+      }));
+
+      const { data: seeded, error: seedError } = await supabase
+        .from('prompts')
+        .insert(seedData)
+        .select();
+
+      if (seedError) throw seedError;
+
+      if (seeded && seeded.length > 0) {
+        const formattedSeeded: Prompt[] = seeded.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          category: item.category,
+          categoryColor: item.category_color,
+          tags: item.tags || [],
+          content: item.content,
+          difficulty: item.difficulty,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
+          isFavorite: item.is_favorite || false,
         }));
-        setPrompts(initialWithIds);
+        setPrompts(formattedSeeded);
       }
     } catch (err) {
-      console.error('Supabase load failed, falling back to localStorage:', err);
-      setStorageMode('localStorage');
-      loadFromLocalStorage();
+      console.error('Supabase load failed:', err);
+      setError('Supabase load failed');
+      setPrompts([]);
     } finally {
       setIsLoaded(true);
     }
-  };
+  }, []);
 
-  const loadFromLocalStorage = () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      
-      if (stored) {
-        const data: StorageData = JSON.parse(stored);
-        if (data.prompts && Array.isArray(data.prompts)) {
-          setPrompts(data.prompts);
-          setIsLoaded(true);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to parse localStorage:', e);
-    }
+  useEffect(() => {
+    loadFromSupabase();
+  }, [loadFromSupabase]);
 
-    // Use initial data
-    const initialWithIds = INITIAL_PROMPTS.map((prompt, index) => ({
-      ...prompt,
-      id: index + 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isFavorite: false
-    }));
-    
-    setPrompts(initialWithIds);
-    setIsLoaded(true);
-  };
-
-  const saveToLocalStorage = (newPrompts: Prompt[]) => {
-    if (storageMode === 'localStorage') {
+  const addPrompt = useCallback(
+    async (promptData: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => {
       try {
-        const data: StorageData = {
-          prompts: newPrompts,
-          version: STORAGE_VERSION
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      } catch (e) {
-        console.error('Failed to save to localStorage:', e);
-      }
-    }
-  };
-
-  const addPrompt = useCallback(async (promptData: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (storageMode === 'supabase' && supabase) {
-      try {
-        const { data, error } = await supabase
+        const { data, error: insertError } = await supabase
           .from('prompts')
           .insert({
             title: promptData.title,
@@ -158,12 +97,12 @@ export function usePrompts() {
             tags: promptData.tags,
             content: promptData.content,
             difficulty: promptData.difficulty,
-            is_favorite: false
+            is_favorite: false,
           })
           .select();
-        
-        if (error) throw error;
-        
+
+        if (insertError) throw insertError;
+
         if (data && data[0]) {
           const newPrompt: Prompt = {
             id: data[0].id,
@@ -176,45 +115,22 @@ export function usePrompts() {
             difficulty: data[0].difficulty,
             createdAt: data[0].created_at,
             updatedAt: data[0].updated_at,
-            isFavorite: data[0].is_favorite || false
+            isFavorite: data[0].is_favorite || false,
           };
-          setPrompts(prev => [newPrompt, ...prev]);
+          setPrompts((prev) => [newPrompt, ...prev]);
         }
       } catch (err) {
-        console.error('Supabase add failed, using localStorage:', err);
-        // Fallback to localStorage
-        const newId = prompts.length > 0 ? Math.max(...prompts.map(p => p.id)) + 1 : 1;
-        const newPrompt: Prompt = {
-          ...promptData,
-          id: newId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isFavorite: false
-        };
-        const newPrompts = [newPrompt, ...prompts];
-        setPrompts(newPrompts);
-        saveToLocalStorage(newPrompts);
+        console.error('Supabase add failed:', err);
+        setError('Supabase add failed');
       }
-    } else {
-      // LocalStorage mode
-      const newId = prompts.length > 0 ? Math.max(...prompts.map(p => p.id)) + 1 : 1;
-      const newPrompt: Prompt = {
-        ...promptData,
-        id: newId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isFavorite: false
-      };
-      const newPrompts = [newPrompt, ...prompts];
-      setPrompts(newPrompts);
-      saveToLocalStorage(newPrompts);
-    }
-  }, [prompts, storageMode]);
+    },
+    []
+  );
 
-  const updatePrompt = useCallback(async (id: number, promptData: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (storageMode === 'supabase' && supabase) {
+  const updatePrompt = useCallback(
+    async (id: number, promptData: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => {
       try {
-        const { error } = await supabase
+        const { error: updateError } = await supabase
           .from('prompts')
           .update({
             title: promptData.title,
@@ -224,158 +140,106 @@ export function usePrompts() {
             tags: promptData.tags,
             content: promptData.content,
             difficulty: promptData.difficulty,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('id', id);
-        
-        if (error) throw error;
-        
-        setPrompts(prev => prev.map(p => 
-          p.id === id 
-            ? { ...p, ...promptData, updatedAt: new Date().toISOString() }
-            : p
-        ));
+
+        if (updateError) throw updateError;
+
+        setPrompts((prev) =>
+          prev.map((p) =>
+            p.id === id ? { ...p, ...promptData, updatedAt: new Date().toISOString() } : p
+          )
+        );
       } catch (err) {
         console.error('Supabase update failed:', err);
-        // Local fallback
-        const newPrompts = prompts.map(p => 
-          p.id === id 
-            ? { ...p, ...promptData, updatedAt: new Date().toISOString() }
-            : p
-        );
-        setPrompts(newPrompts);
-        saveToLocalStorage(newPrompts);
+        setError('Supabase update failed');
       }
-    } else {
-      const newPrompts = prompts.map(p => 
-        p.id === id 
-          ? { ...p, ...promptData, updatedAt: new Date().toISOString() }
-          : p
-      );
-      setPrompts(newPrompts);
-      saveToLocalStorage(newPrompts);
-    }
-  }, [prompts, storageMode]);
+    },
+    []
+  );
 
   const deletePrompt = useCallback(async (id: number) => {
-    if (storageMode === 'supabase' && supabase) {
-      try {
-        const { error } = await supabase
-          .from('prompts')
-          .delete()
-          .eq('id', id);
-        
-        if (error) throw error;
-        
-        setPrompts(prev => prev.filter(p => p.id !== id));
-      } catch (err) {
-        console.error('Supabase delete failed:', err);
-        const newPrompts = prompts.filter(p => p.id !== id);
-        setPrompts(newPrompts);
-        saveToLocalStorage(newPrompts);
-      }
-    } else {
-      const newPrompts = prompts.filter(p => p.id !== id);
-      setPrompts(newPrompts);
-      saveToLocalStorage(newPrompts);
+    try {
+      const { error: deleteError } = await supabase.from('prompts').delete().eq('id', id);
+      if (deleteError) throw deleteError;
+      setPrompts((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error('Supabase delete failed:', err);
+      setError('Supabase delete failed');
     }
-  }, [prompts, storageMode]);
+  }, []);
 
-  const toggleFavorite = useCallback(async (id: number) => {
-    const prompt = prompts.find(p => p.id === id);
-    if (!prompt) return;
-    
-    const newFavoriteStatus = !prompt.isFavorite;
-    
-    if (storageMode === 'supabase' && supabase) {
+  const toggleFavorite = useCallback(
+    async (id: number) => {
+      const prompt = prompts.find((p) => p.id === id);
+      if (!prompt) return;
+
+      const newFavoriteStatus = !prompt.isFavorite;
+
       try {
-        const { error } = await supabase
+        const { error: toggleError } = await supabase
           .from('prompts')
           .update({ is_favorite: newFavoriteStatus })
           .eq('id', id);
-        
-        if (error) throw error;
+
+        if (toggleError) throw toggleError;
+
+        setPrompts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, isFavorite: newFavoriteStatus } : p))
+        );
       } catch (err) {
         console.error('Supabase toggle favorite failed:', err);
+        setError('Supabase toggle favorite failed');
       }
-    }
-    
-    const newPrompts = prompts.map(p => 
-      p.id === id 
-        ? { ...p, isFavorite: newFavoriteStatus }
-        : p
-    );
-    setPrompts(newPrompts);
-    
-    if (storageMode === 'localStorage') {
-      saveToLocalStorage(newPrompts);
-    }
-  }, [prompts, storageMode]);
+    },
+    [prompts]
+  );
 
   const exportData = useCallback(() => {
     return {
       prompts,
       exportDate: new Date().toISOString(),
       version: STORAGE_VERSION,
-      storageMode
     };
-  }, [prompts, storageMode]);
+  }, [prompts]);
 
   const importData = useCallback(async (data: { prompts: Prompt[] }) => {
-    if (data.prompts && Array.isArray(data.prompts)) {
-      if (storageMode === 'supabase' && supabase) {
-        try {
-          for (const prompt of data.prompts) {
-            await supabase.from('prompts').insert({
-              title: prompt.title,
-              description: prompt.description,
-              category: prompt.category,
-              category_color: prompt.categoryColor,
-              tags: prompt.tags,
-              content: prompt.content,
-              difficulty: prompt.difficulty,
-              is_favorite: prompt.isFavorite || false
-            });
-          }
-          await loadFromSupabase();
-        } catch (err) {
-          console.error('Supabase import failed:', err);
-          // Local fallback
-          const validatedPrompts = data.prompts.map((p, index) => ({
-            ...p,
-            id: index + 1,
-            createdAt: p.createdAt || new Date().toISOString(),
-            updatedAt: p.updatedAt || new Date().toISOString(),
-            isFavorite: p.isFavorite || false
-          }));
-          setPrompts(validatedPrompts);
-          saveToLocalStorage(validatedPrompts);
-        }
-      } else {
-        const validatedPrompts = data.prompts.map((p, index) => ({
-          ...p,
-          id: index + 1,
-          createdAt: p.createdAt || new Date().toISOString(),
-          updatedAt: p.updatedAt || new Date().toISOString(),
-          isFavorite: p.isFavorite || false
-        }));
-        setPrompts(validatedPrompts);
-        saveToLocalStorage(validatedPrompts);
-      }
+    if (!data.prompts || !Array.isArray(data.prompts)) return false;
+
+    try {
+      const payload = data.prompts.map((prompt) => ({
+        title: prompt.title,
+        description: prompt.description,
+        category: prompt.category,
+        category_color: prompt.categoryColor,
+        tags: prompt.tags,
+        content: prompt.content,
+        difficulty: prompt.difficulty,
+        is_favorite: prompt.isFavorite || false,
+      }));
+
+      const { error: importError } = await supabase.from('prompts').insert(payload);
+      if (importError) throw importError;
+
+      await loadFromSupabase();
       return true;
+    } catch (err) {
+      console.error('Supabase import failed:', err);
+      setError('Supabase import failed');
+      return false;
     }
-    return false;
-  }, [storageMode]);
+  }, [loadFromSupabase]);
 
   const getCategories = useCallback(() => {
-    const uniqueCategories = Array.from(new Set(prompts.map(p => p.category)));
+    const uniqueCategories = Array.from(new Set(prompts.map((p) => p.category)));
     return uniqueCategories.sort();
   }, [prompts]);
 
   return {
     prompts,
     isLoaded,
-    storageMode,
+    error,
     addPrompt,
     updatePrompt,
     deletePrompt,
@@ -383,6 +247,6 @@ export function usePrompts() {
     exportData,
     importData,
     getCategories,
-    categoryOptions: CATEGORY_OPTIONS
+    categoryOptions: CATEGORY_OPTIONS,
   };
 }

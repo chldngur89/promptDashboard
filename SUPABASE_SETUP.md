@@ -4,7 +4,7 @@
 
 **변경된 파일들:**
 - `src/lib/supabase.ts` - Supabase 클라이언트 생성
-- `src/hooks/usePrompts.ts` - Supabase/LocalStorage 하이브리드 지원
+- `src/hooks/usePrompts.ts` - Supabase 전용 저장
 - `.env.example` - 환경변수 템플릿
 - `package.json` - @supabase/supabase-js 추가
 
@@ -104,7 +104,7 @@ npm run dev  # 개발 서버 실행
 **브라우저**: http://localhost:3000
 
 **확인 사항**:
-- [ ] Console에 "Supabase credentials not found" 없음
+- [ ] Console에 Supabase 연결 확인 (데이터 로딩 성공)
 - [ ] 프롬프트 목록이 표시됨
 - [ ] 새 프롬프트 추가 후 새로고침해도 유지됨
 - [ ] Supabase Table Editor에 데이터가 보임
@@ -163,38 +163,9 @@ cat .gitignore | grep env
 
 ---
 
-## 🧪 데이터 마이그레이션
-
-기존 localStorage 데이터를 Supabase로 옮기려면:
-
-```javascript
-// 브라우저 개발자도구 (F12) → Console에서 실행
-
-// 1. localStorage에서 데이터 추출
-const data = JSON.parse(localStorage.getItem('prompt-dashboard-data'));
-const prompts = data.prompts;
-
-// 2. Supabase에 삽입 (하나씩)
-const { createClient } = await import('@supabase/supabase-js');
-const supabase = createClient('YOUR_URL', 'YOUR_ANON_KEY');
-
-for (const prompt of prompts) {
-  await supabase.from('prompts').insert({
-    title: prompt.title,
-    description: prompt.description,
-    category: prompt.category,
-    category_color: prompt.categoryColor,
-    tags: prompt.tags,
-    content: prompt.content,
-    difficulty: prompt.difficulty,
-    is_favorite: prompt.isFavorite || false
-  });
-}
-
-console.log('Migration complete!');
-```
-
 ---
+
+
 
 ## 📊 Supabase 무료 티어 한도
 

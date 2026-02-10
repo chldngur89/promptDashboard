@@ -1,7 +1,6 @@
-
 # 프롬프트 저장소 (Prompt Dashboard)
 
-AI 프롬프트를 관리하고 저장할 수 있는 웹 애플리케이션입니다. 브라우저에 데이터가 저장되어 새로고침해도 유지됩니다.
+AI 프롬프트를 관리하고 저장할 수 있는 웹 애플리케이션입니다. 데이터는 **Supabase**에 저장됩니다.
 
 ## 주요 기능
 
@@ -9,7 +8,6 @@ AI 프롬프트를 관리하고 저장할 수 있는 웹 애플리케이션입�
 - ✅ 카테고리별 필터링 (이미지 생성, 코딩, 글쓰기, 데이터 분석, 번역)
 - ✅ 검색 기능 (제목, 설명, 카테고리, 태그)
 - ✅ 프롬프트 복사 (클립보드)
-- ✅ localStorage 데이터 지속성
 - ✅ 반응형 디자인
 
 ## 로컬 개발
@@ -17,6 +15,9 @@ AI 프롬프트를 관리하고 저장할 수 있는 웹 애플리케이션입�
 ```bash
 # 의존성 설치
 npm install
+
+# 환경변수 설정
+cp .env.example .env.local
 
 # 개발 서버 실행
 npm run dev
@@ -53,8 +54,11 @@ git push -u origin main
 3. GitHub 레포지토리 선택
 4. Framework Preset: **Vite** 선택
 5. Build Command: `npm run build` (자동 감지)
-6. Output Directory: `build` (자동 감지)
-7. "Deploy" 클릭
+6. Output Directory: `dist`
+7. **Environment Variables**에 다음 추가:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+8. "Deploy" 클릭
 
 ### 3. 커스텀 도메인 연결 (선택)
 
@@ -71,9 +75,8 @@ git push -u origin main
 - Vite (빌드 도구)
 - Tailwind CSS (스타일링)
 - shadcn/ui (UI 컴포넌트)
-- localStorage (데이터 저장)
+- Supabase (데이터 저장)
 
 ## 라이선스
 
 MIT
-  

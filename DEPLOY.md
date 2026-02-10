@@ -32,12 +32,13 @@ GitHub 레포지토리: https://github.com/chldngur89/promptDashboard
 ```
 Framework Preset: Vite (자동 감지됨)
 Build Command: npm run build (기본값)
-Output Directory: build (기본값)
+Output Directory: dist
 Install Command: npm install (기본값)
 ```
 
 **Environment Variables:**
-추가할 환경변수 없음 (기본 설정 사용)
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
 ---
 
@@ -60,7 +61,6 @@ Install Command: npm install (기본값)
 ### 4.1 배포된 사이트 확인
 1. **Visit** 버튼 클릭 또는 URL로 직접 접속
 2. 프롬프트 목록이 정상 표시되는지 확인
-3. 새로고침 시 데이터가 유지되는지 확인 (localStorage)
 
 ### 4.2 기능 테스트
 - 검색 기능 동작 확인
@@ -142,9 +142,9 @@ Value: cname.vercel-dns.com
 - [ ] Vercel 가입 완료 (GitHub 연동)
 - [ ] promptDashboard 프로젝트 Import 완료
 - [ ] Framework Preset: Vite 확인
+- [ ] Vercel 환경변수 설정 완료
 - [ ] 첫 배포 성공
 - [ ] 사이트 접속 확인
-- [ ] localStorage 데이터 유지 확인
 - [ ] (선택) 커스텀 도메인 추가
 - [ ] (선택) DNS 설정 및 적용 확인
 
