@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, ChevronDown, Menu, X } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import svgPaths from "../imports/svg-pdwo1joi0c";
 
 interface NavigationProps {
@@ -10,15 +11,21 @@ interface NavigationProps {
 }
 
 export function Navigation({ searchQuery, onSearchChange, onNewProject, userImage }: NavigationProps) {
-  const [activeTab, setActiveTab] = useState("프롬프트 저장소");
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const navItems = [
-    { name: "대시보드", href: "#" },
+    { name: "대시보드", href: "/" },
     { name: "탐색", href: "#" },
-    { name: "프롬프트 저장소", href: "#" }
+    { name: "AI 도구", href: "/tools" }
   ];
+
+  const isActive = (path: string) => {
+    if (path === "/" && location.pathname === "/") return true;
+    if (path !== "/" && location.pathname.startsWith(path)) return true;
+    return false;
+  };
 
   return (
     <nav className="bg-sidebar border-b border-sidebar-border relative">
@@ -26,7 +33,7 @@ export function Navigation({ searchQuery, onSearchChange, onNewProject, userImag
         <div className="flex items-center justify-between h-[70px]">
           {/* Logo */}
           <div className="flex items-center gap-4">
-            <div className="relative shrink-0 size-10">
+            <Link to="/" className="relative shrink-0 size-10">
               <svg
                 className="block size-full"
                 fill="none"
@@ -45,22 +52,22 @@ export function Navigation({ searchQuery, onSearchChange, onNewProject, userImag
                   </g>
                 </g>
               </svg>
-            </div>
+            </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1">
               {navItems.map((item) => (
-                <button
+                <Link
                   key={item.name}
-                  onClick={() => setActiveTab(item.name)}
+                  to={item.href}
                   className={`px-2 py-2.5 transition-colors ${
-                    activeTab === item.name
-                      ? "text-foreground"
+                    isActive(item.href)
+                      ? "text-foreground font-medium"
                       : "text-muted-foreground hover:text-[#5B4E96]"
                   }`}
                 >
                   {item.name}
-                </button>
+                </Link>
               ))}
             </div>
           </div>
@@ -139,20 +146,18 @@ export function Navigation({ searchQuery, onSearchChange, onNewProject, userImag
             {/* Mobile Navigation */}
             <div className="space-y-2">
               {navItems.map((item) => (
-                <button
+                <Link
                   key={item.name}
-                  onClick={() => {
-                    setActiveTab(item.name);
-                    setIsMenuOpen(false);
-                  }}
+                  to={item.href}
+                  onClick={() => setIsMenuOpen(false)}
                   className={`block w-full text-left px-3 py-2 rounded transition-colors ${
-                    activeTab === item.name
+                    isActive(item.href)
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "text-sidebar-foreground hover:bg-[#5B4E96]/10 hover:text-[#5B4E96]"
                   }`}
                 >
                   {item.name}
-                </button>
+                </Link>
               ))}
             </div>
 
